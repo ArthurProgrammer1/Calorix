@@ -27,12 +27,13 @@ export default function SignupPage() {
     if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return }
     if (form.password !== form.confirm) { toast.error('Passwords do not match'); return }
     setLoading(true)
-    if (getAccountByEmail(form.email)) {
+    const normEmail = form.email.trim().toLowerCase()
+    if (getAccountByEmail(normEmail)) {
       toast.error('An account with this email already exists')
       setLoading(false); return
     }
     localStorage.setItem('calorix_user_partial', JSON.stringify({
-      name: form.name, email: form.email, password: form.password,
+      name: form.name, email: normEmail, password: form.password,
       createdAt: new Date().toISOString(),
     }))
     router.push('/onboarding')

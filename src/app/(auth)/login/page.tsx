@@ -23,9 +23,18 @@ export default function LoginPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const account = getAccountByEmail(email)
-    if (!account) { toast.error('No account found with this email'); setLoading(false); return }
-    if (account.password && account.password !== password) { toast.error('Incorrect password'); setLoading(false); return }
+    const account = getAccountByEmail(email.trim().toLowerCase())
+    if (!account) {
+      toast.error('No account found — please sign up first')
+      setLoading(false)
+      setTimeout(() => router.push('/signup'), 1500)
+      return
+    }
+    if (account.password !== password) {
+      toast.error('Incorrect password')
+      setLoading(false)
+      return
+    }
     saveUser(account)
     toast.success(`Welcome back, ${account.name.split(' ')[0]}!`)
     router.push('/dashboard')
