@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
-import { getAccountByEmail, saveUser } from '@/lib/storage'
+import { cloudSignIn } from '@/lib/cloud'
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--cx-inner)', border: '1px solid var(--cx-border)',
@@ -20,24 +20,17 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const account = getAccountByEmail(email.trim().toLowerCase())
-    if (!account) {
-      toast.error('No account found — please sign up first')
+    try {
+      const result = await cloudSignIn(email.trim().toLowerCase(), password)
+      toast.success('Welcome back!')
+      router.push(result === 'ok' ? '/dashboard' : '/onboarding')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Login failed')
       setLoading(false)
-      setTimeout(() => router.push('/signup'), 1500)
-      return
     }
-    if (account.password !== password) {
-      toast.error('Incorrect password')
-      setLoading(false)
-      return
-    }
-    saveUser(account)
-    toast.success(`Welcome back, ${account.name.split(' ')[0]}!`)
-    router.push('/dashboard')
   }
 
   const labelStyle: React.CSSProperties = { display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500, color: 'var(--cx-label)' }

@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, PlusCircle, TrendingUp, User, LogOut, Sun, Moon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { clearUser } from '@/lib/storage'
 import { useTheme } from '@/lib/theme'
+import { cloudSignOut } from '@/lib/cloud'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -19,7 +19,7 @@ export function Sidebar() {
   const router = useRouter()
   const { isDark, toggle } = useTheme()
 
-  function handleLogout() { clearUser(); router.push('/') }
+  function handleLogout() { cloudSignOut().then(() => router.push('/')) }
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-full w-60 flex-col"

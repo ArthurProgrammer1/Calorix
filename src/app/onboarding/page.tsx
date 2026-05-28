@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { saveUser, getUser, getAccountByEmail } from '@/lib/storage'
+import { cloudSaveProfile } from '@/lib/cloud'
 import { calculateBMR, calculateTDEE, calculateCalorieTarget, calculateMacros, calculateWaterTarget, calculateBMI } from '@/lib/calculations'
 import type { Gender, ActivityLevel, Goal, GoalSpeed, UserProfile } from '@/types'
 import { cn } from '@/lib/utils'
@@ -139,6 +140,7 @@ export default function OnboardingPage() {
       createdAt: new Date().toISOString(),
     }
     saveUser(profile)
+    cloudSaveProfile(profile)
     localStorage.removeItem('calorix_user_partial')
     toast.success('Profile saved! Welcome to Calorix 🎉')
     router.push('/dashboard')

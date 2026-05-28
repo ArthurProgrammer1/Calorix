@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
-import { getAccountByEmail } from '@/lib/storage'
+import { cloudSignUp } from '@/lib/cloud'
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--cx-inner)', border: '1px solid var(--cx-border)',
@@ -22,21 +22,23 @@ export default function SignupPage() {
 
   function update(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return }
     if (form.password !== form.confirm) { toast.error('Passwords do not match'); return }
     setLoading(true)
     const normEmail = form.email.trim().toLowerCase()
-    if (getAccountByEmail(normEmail)) {
-      toast.error('An account with this email already exists')
-      setLoading(false); return
+    try {
+      await cloudSignUp(normEmail, form.password)
+      localStorage.setItem('calorix_user_partial', JSON.stringify({
+        name: form.name, email: normEmail, password: form.password,
+        createdAt: new Date().toISOString(),
+      }))
+      router.push('/onboarding')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Sign up failed')
+      setLoading(false)
     }
-    localStorage.setItem('calorix_user_partial', JSON.stringify({
-      name: form.name, email: normEmail, password: form.password,
-      createdAt: new Date().toISOString(),
-    }))
-    router.push('/onboarding')
   }
 
   const labelStyle: React.CSSProperties = { display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500, color: 'var(--cx-label)' }
