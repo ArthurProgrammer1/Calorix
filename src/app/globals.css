@@ -153,4 +153,23 @@ html.light {
   html.light .cx-card {
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
   }
+  .animate-flame {
+    animation: flame 1.2s ease-in-out infinite;
+  }
+  .shimmer-card {
+    background: linear-gradient(90deg, var(--cx-inner) 25%, var(--cx-card) 50%, var(--cx-inner) 75%);
+    background-size: 200% 100%;
+    animation: shimmer-slide 1.5s infinite;
+    border-radius: 6px;
+  }
+}
+
+@keyframes flame {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  50% { transform: scale(1.15) rotate(3deg); }
+}
+
+@keyframes shimmer-slide {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

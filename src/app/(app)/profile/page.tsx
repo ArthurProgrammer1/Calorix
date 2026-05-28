@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { getUser, clearUser } from '@/lib/storage'
+import { getUser, getStreak } from '@/lib/storage'
+import { cloudSignOut } from '@/lib/cloud'
 import { calculateBMI, calculateBMR, calculateTDEE } from '@/lib/calculations'
 import { useTheme } from '@/lib/theme'
 import type { UserProfile } from '@/types'
@@ -24,15 +25,17 @@ const s = {
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [streak, setStreak] = useState({ current: 0, best: 0, lastLogDate: '' })
   const { isDark, toggle } = useTheme()
 
   useEffect(() => {
     const u = getUser()
     if (!u) { router.push('/onboarding'); return }
     setUser(u)
+    setStreak(getStreak())
   }, [router])
 
-  function handleLogout() { clearUser(); router.push('/') }
+  function handleLogout() { cloudSignOut().then(() => router.push('/')) }
 
   if (!user) return null
 
@@ -60,6 +63,24 @@ export default function ProfilePage() {
           </span>
         </div>
       </motion.div>
+
+      {streak.current > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="mb-5"
+          style={{ ...s.card, background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🔥</span>
+              <div>
+                <div className="font-bold text-[#F97316] text-xl">{streak.current} day streak</div>
+                <div className="text-sm" style={s.text3}>Best ever: {streak.best} days</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium" style={s.text3}>Keep it up!</div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-5" style={s.card}>

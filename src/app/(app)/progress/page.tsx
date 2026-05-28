@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine } from 'recharts'
-import { getUser, getLast7DaysData, getWeightLogs, addWeightLog } from '@/lib/storage'
+import { getUser, getLast7DaysData, getWeightLogs, addWeightLog, getStreak } from '@/lib/storage'
 import { useTheme } from '@/lib/theme'
 import type { UserProfile, WeightLog } from '@/types'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ export default function ProgressPage() {
   const [calData, setCalData] = useState<{ date: string; calories: number; goal: number }[]>([])
   const [weights, setWeights] = useState<WeightLog[]>([])
   const [newWeight, setNewWeight] = useState('')
+  const [streakData, setStreakData] = useState({ current: 0, best: 0, lastLogDate: '' })
   const { isDark } = useTheme()
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function ProgressPage() {
     setUser(u)
     setCalData(getLast7DaysData().map(d => ({ date: d.date, calories: d.calories, goal: u.calorieTarget })))
     setWeights(getWeightLogs().slice(-14))
+    setStreakData(getStreak())
   }, [router])
 
   function handleLogWeight() {
@@ -43,7 +45,6 @@ export default function ProgressPage() {
 
   if (!user) return null
 
-  const streak = calData.filter(d => d.calories > 0).length
   const avg = calData.filter(d => d.calories > 0).reduce((s, d) => s + d.calories, 0) / Math.max(calData.filter(d => d.calories > 0).length, 1)
 
   function fmtDate(d: string) { return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' }) }
@@ -65,7 +66,7 @@ export default function ProgressPage() {
       {/* Stats row */}
       <div className="mb-5 grid grid-cols-3 gap-3">
         {[
-          { icon: Flame, label: 'Days Tracked', value: streak, color: '#F59E0B' },
+          { icon: Flame, label: 'Current Streak', value: `${streakData.current} days`, color: '#F59E0B' },
           { icon: TrendingUp, label: '7-Day Avg', value: `${Math.round(avg).toLocaleString()} kcal`, color: '#22C55E' },
           { icon: Calendar, label: 'Goal', value: `${user.calorieTarget.toLocaleString()} kcal`, color: '#3B82F6' },
         ].map(({ icon: Icon, label, value, color }) => (
@@ -119,22 +120,22 @@ export default function ProgressPage() {
         )}
       </motion.div>
 
-      {/* Achievements */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={s.card}>
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider" style={s.text2}>Achievements</h2>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { emoji: '🌱', label: 'First Log', unlocked: calData.some(d => d.calories > 0) },
-            { emoji: '🔥', label: '3-Day Streak', unlocked: streak >= 3 },
-            { emoji: '⚡', label: '7-Day Streak', unlocked: streak >= 7 },
-            { emoji: '🎯', label: 'Hit Goal', unlocked: calData.some(d => d.calories > 0 && Math.abs(d.calories - d.goal) < 100) },
-            { emoji: '💪', label: 'Week Done', unlocked: streak >= 7 },
-            { emoji: '🏆', label: 'Consistent', unlocked: streak >= 5 },
-          ].map(({ emoji, label, unlocked }) => (
+            { emoji: '🌱', label: 'First Log', unlocked: calData.some(d => d.calories > 0), desc: 'Logged your first meal' },
+            { emoji: '🔥', label: '3-Day Streak', unlocked: streakData.best >= 3, desc: '3 days in a row' },
+            { emoji: '⚡', label: '7-Day Streak', unlocked: streakData.best >= 7, desc: 'A full week!' },
+            { emoji: '🎯', label: 'Hit Goal', unlocked: calData.some(d => d.calories > 0 && Math.abs(d.calories - d.goal) < 150), desc: 'Within 150 kcal of goal' },
+            { emoji: '💪', label: '14-Day Streak', unlocked: streakData.best >= 14, desc: 'Two weeks strong' },
+            { emoji: '🏆', label: '30-Day Streak', unlocked: streakData.best >= 30, desc: 'A whole month!' },
+          ].map(({ emoji, label, unlocked, desc }) => (
             <div key={label} className={`rounded-2xl p-3 text-center transition-all ${unlocked ? '' : 'opacity-40'}`}
-              style={unlocked ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' } : { background: 'var(--cx-inner)' }}>
+              style={unlocked ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' } : { background: 'var(--cx-inner)', border: '1px solid var(--cx-border)' }}>
               <div className="text-2xl mb-1">{emoji}</div>
-              <div className="text-xs font-medium" style={s.text}>{label}</div>
+              <div className="text-xs font-semibold" style={{ color: unlocked ? '#22C55E' : 'var(--cx-text)' }}>{label}</div>
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--cx-text3)' }}>{desc}</div>
             </div>
           ))}
         </div>

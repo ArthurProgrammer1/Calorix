@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Search, Loader2, Plus, CheckCircle2, Camera, Upload, X, Sparkles } from 'lucide-react'
-import { addFoodEntry, getUser } from '@/lib/storage'
+import { addFoodEntry, getUser, getRecentFoods } from '@/lib/storage'
 import type { MealType } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -103,8 +103,12 @@ function LogContent() {
 
   // Selected (search mode)
   const [selected, setSelected] = useState<FoodResult | null>(null)
+  const [recentFoods, setRecentFoods] = useState<import('@/lib/storage').RecentFood[]>([])
 
-  useEffect(() => { if (!getUser()) router.push('/onboarding') }, [router])
+  useEffect(() => {
+    if (!getUser()) router.push('/onboarding')
+    setRecentFoods(getRecentFoods())
+  }, [router])
 
   // ── Search ──
   async function runSearch(q: string) {
@@ -199,9 +203,11 @@ function LogContent() {
     router.push('/dashboard')
   }
 
-  function logFood(food: FoodResult) {
+  function logFood(food: FoodResult & { serving?: string }) {
     const today = new Date().toISOString().split('T')[0]
     addFoodEntry({ date: today, mealType: meal, name: food.name, calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat })
+    setRecentFoods(getRecentFoods())
+    return true
   }
 
   const modes = [
@@ -257,6 +263,30 @@ function LogContent() {
                 {searchResults.map((r, i) => (
                   <ResultCard key={i} r={r} onAdd={handleAddSearch} added={selected?.name === r.name} />
                 ))}
+              </div>
+            )}
+            {searchResults.length === 0 && !searching && recentFoods.length > 0 && (
+              <div className="mt-5">
+                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={cs.text3}>Recently Logged</p>
+                <div className="space-y-2">
+                  {recentFoods.map((f, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                      className="flex items-center justify-between rounded-2xl p-3.5" style={cs.card}>
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="font-medium text-sm truncate" style={cs.text}>{f.name}</p>
+                        <p className="text-xs" style={cs.text3}>P:{f.protein}g C:{f.carbs}g F:{f.fat}g</p>
+                      </div>
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <span className="font-bold text-sm text-[#22C55E]">{f.calories} kcal</span>
+                        <button onClick={() => { logFood(f); toast.success(`${f.name} added!`) }}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl text-[#22C55E] transition hover:bg-[#22C55E] hover:text-black"
+                          style={{ background: 'rgba(34,197,94,0.12)' }}>
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             )}
           </motion.div>

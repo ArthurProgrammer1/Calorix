@@ -91,6 +91,8 @@ export function addFoodEntry(entry: Omit<FoodEntry, 'id' | 'createdAt'>): FoodEn
   const entries = getFoodEntries(entry.date)
   if (email) {
     localStorage.setItem(foodEntryKey(email, entry.date), JSON.stringify([...entries, full]))
+    updateStreak()
+    recordRecentFood({ name: entry.name, calories: entry.calories, protein: entry.protein, carbs: entry.carbs, fat: entry.fat })
   }
   return full
 }
@@ -148,4 +150,70 @@ export function addWeightLog(weight: number): void {
   if (existing >= 0) logs[existing].weight = weight
   else logs.push({ date, weight })
   localStorage.setItem(weightLogKey(email), JSON.stringify(logs))
+}
+
+// ── Streak tracking ──
+
+export function getStreak(): { current: number; best: number; lastLogDate: string } {
+  if (typeof window === 'undefined') return { current: 0, best: 0, lastLogDate: '' }
+  const email = getActiveEmail()
+  if (!email) return { current: 0, best: 0, lastLogDate: '' }
+  try {
+    const d = localStorage.getItem(`calorix_streak_${emailKey(email)}`)
+    return d ? JSON.parse(d) : { current: 0, best: 0, lastLogDate: '' }
+  } catch { return { current: 0, best: 0, lastLogDate: '' } }
+}
+
+function updateStreak(): void {
+  const email = getActiveEmail()
+  if (!email) return
+  const today = new Date().toISOString().split('T')[0]
+  const streak = getStreak()
+  if (streak.lastLogDate === today) return
+  const yd = new Date(); yd.setDate(yd.getDate() - 1)
+  const yesterday = yd.toISOString().split('T')[0]
+  const newCurrent = streak.lastLogDate === yesterday ? streak.current + 1 : 1
+  localStorage.setItem(`calorix_streak_${emailKey(email)}`, JSON.stringify({
+    current: newCurrent, best: Math.max(streak.best, newCurrent), lastLogDate: today,
+  }))
+}
+
+// ── Water tracking ──
+
+export function getWaterToday(): number {
+  if (typeof window === 'undefined') return 0
+  const email = getActiveEmail()
+  if (!email) return 0
+  const today = new Date().toISOString().split('T')[0]
+  return Number(localStorage.getItem(`calorix_water_${emailKey(email)}_${today}`) || 0)
+}
+
+export function setWaterToday(glasses: number): void {
+  const email = getActiveEmail()
+  if (!email) return
+  const today = new Date().toISOString().split('T')[0]
+  localStorage.setItem(`calorix_water_${emailKey(email)}_${today}`, String(Math.max(0, glasses)))
+}
+
+// ── Recent foods ──
+
+export type RecentFood = { name: string; calories: number; protein: number; carbs: number; fat: number }
+
+export function getRecentFoods(): RecentFood[] {
+  if (typeof window === 'undefined') return []
+  const email = getActiveEmail()
+  if (!email) return []
+  try {
+    const d = localStorage.getItem(`calorix_recent_${emailKey(email)}`)
+    return d ? JSON.parse(d) : []
+  } catch { return [] }
+}
+
+function recordRecentFood(e: { name: string; calories: number; protein: number; carbs: number; fat: number }): void {
+  const email = getActiveEmail()
+  if (!email) return
+  const recent = getRecentFoods().filter(f => f.name !== e.name)
+  localStorage.setItem(`calorix_recent_${emailKey(email)}`, JSON.stringify(
+    [{ name: e.name, calories: e.calories, protein: e.protein, carbs: e.carbs, fat: e.fat }, ...recent].slice(0, 8)
+  ))
 }
