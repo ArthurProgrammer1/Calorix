@@ -9,7 +9,6 @@ import { saveUser, getUser, getAccountByEmail } from '@/lib/storage'
 import { cloudSaveProfile } from '@/lib/cloud'
 import { calculateBMR, calculateTDEE, calculateCalorieTarget, calculateMacros, calculateWaterTarget, calculateBMI } from '@/lib/calculations'
 import type { Gender, ActivityLevel, Goal, GoalSpeed, UserProfile } from '@/types'
-import { cn } from '@/lib/utils'
 
 type StepData = {
   name: string; email: string; password: string; age: string; gender: Gender | null
@@ -43,18 +42,27 @@ const variants = {
   exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -60 : 60 }),
 }
 
+const s = {
+  card: { background: 'var(--cx-card)', border: '1px solid var(--cx-border)', borderRadius: 24 } as React.CSSProperties,
+  input: { background: 'var(--cx-inner)', border: '1px solid var(--cx-border)', color: 'var(--cx-text)', width: '100%', borderRadius: 12, padding: '12px 16px', outline: 'none' } as React.CSSProperties,
+  text: { color: 'var(--cx-text)' } as React.CSSProperties,
+  text2: { color: 'var(--cx-text2)' } as React.CSSProperties,
+  label: { color: 'var(--cx-label)', display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6 } as React.CSSProperties,
+}
+
 function OptionCard({ selected, onClick, emoji, label, desc, right }: { selected: boolean; onClick: () => void; emoji: string; label: string; desc?: string; right?: string }) {
   return (
-    <button onClick={onClick} className={cn(
-      'flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all',
-      selected ? 'border-[#22C55E] bg-[#22C55E]/10' : 'border-[#2A2A3A] bg-[#1A1A24] hover:border-[#22C55E]/40'
-    )}>
+    <button onClick={onClick} className="flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-all"
+      style={{
+        background: selected ? 'rgba(34,197,94,0.08)' : 'var(--cx-inner)',
+        border: `2px solid ${selected ? '#22C55E' : 'var(--cx-border)'}`,
+      }}>
       <span className="text-2xl">{emoji}</span>
       <div className="flex-1">
-        <p className={cn('font-semibold', selected ? 'text-[#22C55E]' : 'text-white')}>{label}</p>
-        {desc && <p className="text-sm text-[#9CA3AF]">{desc}</p>}
+        <p className="font-semibold" style={{ color: selected ? '#22C55E' : 'var(--cx-text)' }}>{label}</p>
+        {desc && <p className="text-sm" style={s.text2}>{desc}</p>}
       </div>
-      {right && <span className="text-sm font-medium text-[#9CA3AF]">{right}</span>}
+      {right && <span className="text-sm font-medium" style={s.text2}>{right}</span>}
     </button>
   )
 }
@@ -94,7 +102,6 @@ export default function OnboardingPage() {
       setData(d => ({ ...d, name: p.name || '', email: p.email || '', password: p.password || '' }))
       return
     }
-    // Update-goals flow: pre-fill from active session
     const existing = getUser()
     if (existing) {
       setData(d => ({ ...d, name: existing.name, email: existing.email, password: existing.password || '' }))
@@ -128,7 +135,6 @@ export default function OnboardingPage() {
     setLoading(true)
     const r = getResults()
     const speed = data.goal === 'maintain' ? 'moderate' : (data.speed || 'moderate')
-    // Preserve existing password if "update goals" flow didn't supply one
     const existingPw = data.password || getAccountByEmail(data.email)?.password || ''
     const profile: UserProfile = {
       name: data.name, email: data.email, password: existingPw,
@@ -149,20 +155,24 @@ export default function OnboardingPage() {
   const results = step === 5 && data.activity && data.goal ? getResults() : null
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0F0F14] px-4 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12" style={{ background: 'var(--cx-bg)' }}>
       {/* Logo */}
       <div className="mb-8 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
           <span className="font-bold text-black">C</span>
         </div>
-        <span className="text-xl font-bold text-white">Calorix</span>
+        <span className="text-xl font-bold" style={s.text}>Calorix</span>
       </div>
 
       {/* Step dots */}
       <div className="mb-8 flex gap-2">
         {Array.from({ length: totalSteps }).map((_, i) => (
-          <div key={i} className={cn('h-2 rounded-full transition-all duration-300',
-            i + 1 === step ? 'w-8 bg-[#22C55E]' : i + 1 < step ? 'w-2 bg-[#22C55E]/60' : 'w-2 bg-[#2A2A3A]')} />
+          <div key={i} className="h-2 rounded-full transition-all duration-300"
+            style={{
+              width: i + 1 === step ? 32 : 8,
+              background: i + 1 <= step ? '#22C55E' : 'var(--cx-border)',
+              opacity: i + 1 < step ? 0.6 : 1,
+            }} />
         ))}
       </div>
 
@@ -173,27 +183,29 @@ export default function OnboardingPage() {
 
             {/* Step 1 — Personal Info */}
             {step === 1 && (
-              <div className="rounded-3xl border border-[#2A2A3A] bg-[#1A1A24] p-8">
-                <h2 className="mb-1 text-2xl font-bold text-white">Tell us about yourself</h2>
-                <p className="mb-6 text-[#9CA3AF]">We&apos;ll calculate your perfect calorie target</p>
+              <div className="p-8" style={s.card}>
+                <h2 className="mb-1 text-2xl font-bold" style={s.text}>Tell us about yourself</h2>
+                <p className="mb-6" style={s.text2}>We&apos;ll calculate your perfect calorie target</p>
                 <div className="space-y-4">
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-[#D1D5DB]">Your name</label>
-                    <input value={data.name} onChange={e => set('name', e.target.value)} placeholder="Alex Smith"
-                      className="w-full rounded-xl border border-[#2A2A3A] bg-[#0F0F14] px-4 py-3 text-white placeholder-[#6B7280] outline-none transition focus:border-[#22C55E]" />
+                    <label style={s.label}>Your name</label>
+                    <input value={data.name} onChange={e => set('name', e.target.value)} placeholder="Alex Smith" style={s.input} />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-[#D1D5DB]">Age</label>
-                    <input type="number" value={data.age} onChange={e => set('age', e.target.value)} placeholder="25" min="10" max="100"
-                      className="w-full rounded-xl border border-[#2A2A3A] bg-[#0F0F14] px-4 py-3 text-white placeholder-[#6B7280] outline-none transition focus:border-[#22C55E]" />
+                    <label style={s.label}>Age</label>
+                    <input type="number" value={data.age} onChange={e => set('age', e.target.value)} placeholder="25" min="10" max="100" style={s.input} />
                   </div>
                   <div>
-                    <label className="mb-3 block text-sm font-medium text-[#D1D5DB]">Gender</label>
+                    <label style={{ ...s.label, marginBottom: 12 }}>Gender</label>
                     <div className="grid grid-cols-2 gap-3">
                       {(['male', 'female'] as Gender[]).map(g => (
                         <button key={g} onClick={() => set('gender', g)}
-                          className={cn('rounded-xl border-2 py-3 font-medium capitalize transition-all',
-                            data.gender === g ? 'border-[#22C55E] bg-[#22C55E]/10 text-[#22C55E]' : 'border-[#2A2A3A] text-[#9CA3AF] hover:border-[#22C55E]/40')}>
+                          className="rounded-xl py-3 font-medium capitalize transition-all"
+                          style={{
+                            border: `2px solid ${data.gender === g ? '#22C55E' : 'var(--cx-border)'}`,
+                            background: data.gender === g ? 'rgba(34,197,94,0.08)' : 'var(--cx-inner)',
+                            color: data.gender === g ? '#22C55E' : 'var(--cx-text2)',
+                          }}>
                           {g === 'male' ? '♂ Male' : '♀ Female'}
                         </button>
                       ))}
@@ -201,14 +213,12 @@ export default function OnboardingPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[#D1D5DB]">Height (cm)</label>
-                      <input type="number" value={data.height} onChange={e => set('height', e.target.value)} placeholder="175"
-                        className="w-full rounded-xl border border-[#2A2A3A] bg-[#0F0F14] px-4 py-3 text-white placeholder-[#6B7280] outline-none transition focus:border-[#22C55E]" />
+                      <label style={s.label}>Height (cm)</label>
+                      <input type="number" value={data.height} onChange={e => set('height', e.target.value)} placeholder="175" style={s.input} />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-[#D1D5DB]">Weight (kg)</label>
-                      <input type="number" value={data.weight} onChange={e => set('weight', e.target.value)} placeholder="70" step="0.1"
-                        className="w-full rounded-xl border border-[#2A2A3A] bg-[#0F0F14] px-4 py-3 text-white placeholder-[#6B7280] outline-none transition focus:border-[#22C55E]" />
+                      <label style={s.label}>Weight (kg)</label>
+                      <input type="number" value={data.weight} onChange={e => set('weight', e.target.value)} placeholder="70" step="0.1" style={s.input} />
                     </div>
                   </div>
                 </div>
@@ -217,9 +227,9 @@ export default function OnboardingPage() {
 
             {/* Step 2 — Activity */}
             {step === 2 && (
-              <div className="rounded-3xl border border-[#2A2A3A] bg-[#1A1A24] p-8">
-                <h2 className="mb-1 text-2xl font-bold text-white">How active are you?</h2>
-                <p className="mb-6 text-[#9CA3AF]">This affects your calorie burn estimate</p>
+              <div className="p-8" style={s.card}>
+                <h2 className="mb-1 text-2xl font-bold" style={s.text}>How active are you?</h2>
+                <p className="mb-6" style={s.text2}>This affects your calorie burn estimate</p>
                 <div className="space-y-3">
                   {activities.map(a => (
                     <OptionCard key={a.value} selected={data.activity === a.value} onClick={() => set('activity', a.value)}
@@ -231,9 +241,9 @@ export default function OnboardingPage() {
 
             {/* Step 3 — Goal */}
             {step === 3 && (
-              <div className="rounded-3xl border border-[#2A2A3A] bg-[#1A1A24] p-8">
-                <h2 className="mb-1 text-2xl font-bold text-white">What&apos;s your goal?</h2>
-                <p className="mb-6 text-[#9CA3AF]">We&apos;ll adjust your calories accordingly</p>
+              <div className="p-8" style={s.card}>
+                <h2 className="mb-1 text-2xl font-bold" style={s.text}>What&apos;s your goal?</h2>
+                <p className="mb-6" style={s.text2}>We&apos;ll adjust your calories accordingly</p>
                 <div className="space-y-3">
                   {goals.map(g => (
                     <OptionCard key={g.value} selected={data.goal === g.value} onClick={() => set('goal', g.value)}
@@ -245,23 +255,23 @@ export default function OnboardingPage() {
 
             {/* Step 4 — Speed */}
             {step === 4 && (
-              <div className="rounded-3xl border border-[#2A2A3A] bg-[#1A1A24] p-8">
+              <div className="p-8" style={s.card}>
                 {data.goal === 'maintain' ? (
                   <div className="py-8 text-center">
                     <div className="mb-4 text-5xl">⚖️</div>
-                    <h2 className="mb-2 text-2xl font-bold text-white">Perfect choice</h2>
-                    <p className="text-[#9CA3AF]">We&apos;ll set your calories to your exact maintenance level — no deficit, no surplus.</p>
+                    <h2 className="mb-2 text-2xl font-bold" style={s.text}>Perfect choice</h2>
+                    <p style={s.text2}>We&apos;ll set your calories to your exact maintenance level — no deficit, no surplus.</p>
                   </div>
                 ) : (
                   <>
-                    <h2 className="mb-1 text-2xl font-bold text-white">How fast?</h2>
-                    <p className="mb-6 text-[#9CA3AF]">
+                    <h2 className="mb-1 text-2xl font-bold" style={s.text}>How fast?</h2>
+                    <p className="mb-6" style={s.text2}>
                       {data.goal === 'lose' ? 'How quickly do you want to lose weight?' : 'How fast do you want to gain?'}
                     </p>
                     <div className="space-y-3">
-                      {speeds.map(s => (
-                        <OptionCard key={s.value} selected={data.speed === s.value} onClick={() => set('speed', s.value)}
-                          emoji={s.emoji} label={s.label} desc={s.desc} right={s.adj} />
+                      {speeds.map(sp => (
+                        <OptionCard key={sp.value} selected={data.speed === sp.value} onClick={() => set('speed', sp.value)}
+                          emoji={sp.emoji} label={sp.label} desc={sp.desc} right={sp.adj} />
                       ))}
                     </div>
                   </>
@@ -271,15 +281,15 @@ export default function OnboardingPage() {
 
             {/* Step 5 — Results */}
             {step === 5 && results && (
-              <div className="rounded-3xl border border-[#2A2A3A] bg-[#1A1A24] p-8 text-center">
+              <div className="p-8 text-center" style={s.card}>
                 <div className="mb-2 text-4xl">🎯</div>
-                <h2 className="mb-1 text-2xl font-bold text-white">Your daily target</h2>
-                <p className="mb-6 text-[#9CA3AF]">Based on your profile and goals</p>
-                <div className="mb-6 rounded-2xl bg-[#22C55E]/10 border border-[#22C55E]/30 py-6">
+                <h2 className="mb-1 text-2xl font-bold" style={s.text}>Your daily target</h2>
+                <p className="mb-6" style={s.text2}>Based on your profile and goals</p>
+                <div className="mb-6 rounded-2xl py-6" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)' }}>
                   <div className="text-5xl font-bold text-[#22C55E]">
                     <AnimatedCount value={results.calories} />
                   </div>
-                  <div className="mt-1 text-[#9CA3AF]">calories per day</div>
+                  <div className="mt-1" style={s.text2}>calories per day</div>
                 </div>
                 <div className="mb-6 grid grid-cols-3 gap-3">
                   {[
@@ -287,19 +297,20 @@ export default function OnboardingPage() {
                     { label: 'Carbs', value: results.carbs, unit: 'g', color: '#F59E0B' },
                     { label: 'Fat', value: results.fat, unit: 'g', color: '#A855F7' },
                   ].map(m => (
-                    <div key={m.label} className="rounded-2xl bg-[#0F0F14] p-3">
+                    <div key={m.label} className="rounded-2xl p-3" style={{ background: 'var(--cx-inner)' }}>
                       <div className="text-xl font-bold" style={{ color: m.color }}>{m.value}{m.unit}</div>
-                      <div className="text-xs text-[#9CA3AF]">{m.label}</div>
+                      <div className="text-xs" style={s.text2}>{m.label}</div>
                     </div>
                   ))}
                 </div>
                 <div className="mb-6 flex justify-around text-center">
-                  <div><div className="font-bold text-[#06B6D4]">{results.water}L</div><div className="text-xs text-[#9CA3AF]">Water</div></div>
-                  <div><div className="font-bold text-white">{results.bmi}</div><div className="text-xs text-[#9CA3AF]">BMI</div></div>
-                  <div><div className="font-bold text-[#22C55E]">{results.tdee}</div><div className="text-xs text-[#9CA3AF]">TDEE</div></div>
+                  <div><div className="font-bold text-[#06B6D4]">{results.water}L</div><div className="text-xs" style={s.text2}>Water</div></div>
+                  <div><div className="font-bold" style={s.text}>{results.bmi}</div><div className="text-xs" style={s.text2}>BMI</div></div>
+                  <div><div className="font-bold text-[#22C55E]">{results.tdee}</div><div className="text-xs" style={s.text2}>TDEE</div></div>
                 </div>
                 <button onClick={handleFinish} disabled={loading}
-                  className="w-full rounded-2xl bg-[#22C55E] py-4 text-lg font-bold text-black transition hover:bg-[#16a34a] disabled:opacity-60">
+                  className="w-full rounded-2xl py-4 text-lg font-bold text-black transition hover:opacity-90 disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
                   {loading ? 'Saving…' : 'Start Tracking 🚀'}
                 </button>
               </div>
@@ -312,12 +323,14 @@ export default function OnboardingPage() {
       {step < 5 && (
         <div className="mt-6 flex w-full max-w-md justify-between gap-4">
           {step > 1 ? (
-            <button onClick={back} className="flex items-center gap-2 rounded-xl border border-[#2A2A3A] px-5 py-3 text-[#9CA3AF] transition hover:border-[#22C55E]/40 hover:text-white">
+            <button onClick={back} className="flex items-center gap-2 rounded-xl px-5 py-3 transition"
+              style={{ border: '1px solid var(--cx-border)', color: 'var(--cx-text2)' }}>
               <ChevronLeft className="h-4 w-4" /> Back
             </button>
           ) : <div />}
           <button onClick={next} disabled={!canProceed()}
-            className="flex items-center gap-2 rounded-xl bg-[#22C55E] px-6 py-3 font-semibold text-black transition hover:bg-[#16a34a] disabled:opacity-40">
+            className="flex items-center gap-2 rounded-xl px-6 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
             {step === 4 ? 'See Results' : 'Continue'} <ChevronRight className="h-4 w-4" />
           </button>
         </div>

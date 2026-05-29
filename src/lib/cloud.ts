@@ -2,26 +2,36 @@ import { createClient } from '@/lib/supabase/client'
 import { saveUser, clearUser } from '@/lib/storage'
 import type { UserProfile } from '@/types'
 
-export async function cloudSignUp(email: string, password: string): Promise<void> {
+export async function cloudSignUp(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
   const supabase = createClient()
-  const { error } = await supabase.auth.signUp({ email, password })
+  const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) {
-    if (error.message.includes('already registered') || error.message.includes('already exists')) {
-      throw new Error('An account with this email already exists')
+    const msg = error.message.toLowerCase()
+    if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
+      throw new Error('An account with this email already exists — please log in instead.')
     }
     throw new Error(error.message)
   }
+  // session is null when Supabase requires email confirmation
+  return { needsConfirmation: !data.session }
+}
+
+export async function cloudResendConfirmation(email: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.auth.resend({ type: 'signup', email })
+  if (error) throw new Error(error.message)
 }
 
 export async function cloudSignIn(email: string, password: string): Promise<'ok' | 'needs-onboarding'> {
   const supabase = createClient()
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) {
-    if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
+    const msg = error.message.toLowerCase()
+    if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
       throw new Error('Incorrect email or password')
     }
-    if (error.message.includes('Email not confirmed')) {
-      throw new Error('Please confirm your email before logging in')
+    if (msg.includes('email not confirmed')) {
+      throw new Error('Please confirm your email first — check your inbox for the verification link.')
     }
     throw new Error(error.message)
   }
@@ -56,6 +66,6 @@ export async function cloudSaveProfile(profile: UserProfile): Promise<void> {
       updated_at: new Date().toISOString(),
     })
   } catch {
-    // Profile saved locally even if cloud sync fails
+    // saved locally even if cloud sync fails
   }
 }

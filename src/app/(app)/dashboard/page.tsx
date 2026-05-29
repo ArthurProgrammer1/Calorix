@@ -157,6 +157,18 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [])
 
+  const eaten = entries.reduce((s, e) => s + e.calories, 0)
+
+  useEffect(() => {
+    if (!user || eaten === 0) return
+    if (eaten >= user.calorieTarget && !celebratedRef.current) {
+      celebratedRef.current = true
+      setCelebrated(true)
+      const t = setTimeout(() => setCelebrated(false), 4000)
+      return () => clearTimeout(t)
+    }
+  }, [eaten, user])
+
   function handleDelete(id: string) {
     deleteFoodEntry(id, today)
     setEntries(getFoodEntries(today))
@@ -170,7 +182,6 @@ export default function DashboardPage() {
 
   if (!user) return null
 
-  const eaten = entries.reduce((s, e) => s + e.calories, 0)
   const protein = entries.reduce((s, e) => s + e.protein, 0)
   const carbs = entries.reduce((s, e) => s + e.carbs, 0)
   const fat = entries.reduce((s, e) => s + e.fat, 0)
@@ -179,11 +190,6 @@ export default function DashboardPage() {
   const pct = user.calorieTarget > 0 ? Math.min(Math.round((eaten / user.calorieTarget) * 100), 100) : 0
 
   const goalHit = eaten >= user.calorieTarget
-  if (goalHit && !celebratedRef.current) {
-    celebratedRef.current = true
-    setCelebrated(true)
-    setTimeout(() => setCelebrated(false), 4000)
-  }
 
   const now = new Date()
   const hour = now.getHours()

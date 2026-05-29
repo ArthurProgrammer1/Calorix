@@ -11,7 +11,8 @@ interface Props {
 
 export function WaterTracker({ glasses, waterTarget, onChange }: Props) {
   const total = 8
-  const mlPerGlass = (waterTarget * 1000) / total
+  const safeTarget = waterTarget > 0 ? waterTarget : 2
+  const mlPerGlass = (safeTarget * 1000) / total
   const consumed = ((glasses * mlPerGlass) / 1000).toFixed(1)
   const pct = Math.round((glasses / total) * 100)
 
@@ -39,7 +40,7 @@ export function WaterTracker({ glasses, waterTarget, onChange }: Props) {
         ))}
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: 'var(--cx-text3)' }}>{consumed}L of {waterTarget}L</span>
+        <span className="text-xs" style={{ color: 'var(--cx-text3)' }}>{consumed}L of {safeTarget}L</span>
         {glasses >= total && <span className="text-xs font-semibold" style={{ color: '#06B6D4' }}>Goal reached! 💧</span>}
       </div>
     </div>
