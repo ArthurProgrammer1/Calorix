@@ -1,26 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient as _create } from '@supabase/supabase-js'
+
+const URL = 'https://ainipjgtwrkbqvhzhaek.supabase.co'
+const KEY = 'sb_publishable_7x87NvpMCwIgaartSkJ3kg_xBdigsCH'
 
 export async function createClient() {
-  const cookieStore = await cookies()
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ainipjgtwrkbqvhzhaek.supabase.co'
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7x87NvpMCwIgaartSkJ3kg_xBdigsCH'
-
-  return createServerClient(url, key,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {}
-        },
-      },
-    }
-  )
+  return _create(URL, KEY)
 }

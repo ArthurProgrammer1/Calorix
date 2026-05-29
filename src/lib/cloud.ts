@@ -36,11 +36,12 @@ export async function cloudSignIn(email: string, password: string): Promise<'ok'
     throw new Error(error.message)
   }
 
-  const { data: row } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: row } = await (supabase
     .from('profiles')
     .select('data')
     .eq('id', data.user.id)
-    .single()
+    .single() as any)
 
   if (row?.data) {
     saveUser(row.data as UserProfile)
@@ -60,7 +61,8 @@ export async function cloudSaveProfile(profile: UserProfile): Promise<void> {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('profiles').upsert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('profiles').upsert({
       id: user.id,
       data: profile,
       updated_at: new Date().toISOString(),

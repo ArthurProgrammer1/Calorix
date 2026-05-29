@@ -1,8 +1,12 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient as _create } from '@supabase/supabase-js'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ainipjgtwrkbqvhzhaek.supabase.co'
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7x87NvpMCwIgaartSkJ3kg_xBdigsCH'
+// These are public-facing credentials (safe to hardcode — protected by RLS)
+const URL  = 'https://ainipjgtwrkbqvhzhaek.supabase.co'
+const KEY  = 'sb_publishable_7x87NvpMCwIgaartSkJ3kg_xBdigsCH'
+
+let _singleton: ReturnType<typeof _create> | null = null
 
 export function createClient() {
-  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  if (!_singleton) _singleton = _create(URL, KEY)
+  return _singleton
 }
