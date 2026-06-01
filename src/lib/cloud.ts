@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { saveUser, clearUser } from '@/lib/storage'
+import { saveUser, clearUser, getAccountByEmail } from '@/lib/storage'
 import type { UserProfile } from '@/types'
 
 export async function cloudSignUp(email: string, password: string): Promise<{ needsConfirmation: boolean }> {
@@ -36,17 +36,33 @@ export async function cloudSignIn(email: string, password: string): Promise<'ok'
     throw new Error(error.message)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: row } = await (supabase
-    .from('profiles')
-    .select('data')
-    .eq('id', data.user.id)
-    .single() as any)
+  // Set the local session key so localStorage lookups work immediately
+  localStorage.setItem('calorix_session', email)
 
-  if (row?.data) {
-    saveUser(row.data as UserProfile)
+  // 1. Check localStorage first — works even if Supabase profiles table isn't set up
+  const local = getAccountByEmail(email)
+  if (local) {
+    saveUser(local)
+    // Sync to Supabase in the background so future logins on other devices work
+    cloudSaveProfile(local).catch(() => {})
     return 'ok'
   }
+
+  // 2. Fall back to Supabase profiles table
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: row } = await (supabase
+      .from('profiles')
+      .select('data')
+      .eq('id', data.user.id)
+      .single() as any)
+
+    if (row?.data) {
+      saveUser(row.data as UserProfile)
+      return 'ok'
+    }
+  } catch { /* profiles table may not exist yet */ }
+
   return 'needs-onboarding'
 }
 
