@@ -22,10 +22,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { imageBase64, mimeType } = await request.json()
+    const { imageBase64, mimeType, note } = await request.json()
     if (!imageBase64) return Response.json({ error: 'No image provided' }, { status: 400 })
 
     const groq = new Groq({ apiKey })
+
+    const promptText = note?.trim()
+      ? `${PROMPT}\n\nIMPORTANT — User note about this meal: "${note.trim()}"\nAdjust your nutritional estimates based on this note (e.g. ingredient substitutions, cooking method, portion changes).`
+      : PROMPT
 
     const result = await groq.chat.completions.create({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -33,7 +37,7 @@ export async function POST(request: NextRequest) {
         {
           role: 'user',
           content: [
-            { type: 'text', text: PROMPT },
+            { type: 'text', text: promptText },
             {
               type: 'image_url',
               image_url: { url: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}` },

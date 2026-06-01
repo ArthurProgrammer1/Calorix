@@ -96,6 +96,7 @@ function LogContent() {
   const [analysing, setAnalysing] = useState(false)
   const [photoResults, setPhotoResults] = useState<FoodResult[]>([])
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
+  const [photoNote, setPhotoNote] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Manual state
@@ -150,6 +151,7 @@ function LogContent() {
       setImage({ preview: URL.createObjectURL(file), base64, mimeType })
       setPhotoResults([])
       setAddedItems(new Set())
+      setPhotoNote('')
     } catch { toast.error('Could not load image') }
   }
 
@@ -160,7 +162,7 @@ function LogContent() {
       const res = await fetch('/api/analyze-food', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: image.base64, mimeType: image.mimeType }),
+        body: JSON.stringify({ imageBase64: image.base64, mimeType: image.mimeType, note: photoNote }),
       })
       const data = await res.json()
       if (!res.ok || data.error) {
@@ -338,25 +340,35 @@ function LogContent() {
                 <div className="relative rounded-2xl overflow-hidden" style={{ maxHeight: 280 }}>
                   <img src={image.preview} alt="Food" className="w-full object-cover" style={{ maxHeight: 280 }} />
                   <button
-                    onClick={() => { setImage(null); setPhotoResults([]); setAddedItems(new Set()) }}
+                    onClick={() => { setImage(null); setPhotoResults([]); setAddedItems(new Set()); setPhotoNote('') }}
                     className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:scale-110"
                     style={{ background: 'rgba(0,0,0,0.6)' }}>
                     <X className="h-4 w-4" />
                   </button>
-
-                  {/* Analyse button overlay or inline */}
-                  {photoResults.length === 0 && (
-                    <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-                      <button onClick={handleAnalyse} disabled={analysing}
-                        className="flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-70 shadow-lg"
-                        style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
-                        {analysing
-                          ? <><Loader2 className="h-4 w-4 animate-spin" /> Analysing…</>
-                          : <><Sparkles className="h-4 w-4" /> Analyse Food</>}
-                      </button>
-                    </div>
-                  )}
                 </div>
+
+                {/* Note field + Analyse — shown before results */}
+                {photoResults.length === 0 && !analysing && (
+                  <div className="rounded-2xl p-4 space-y-3" style={{ background: 'var(--cx-card)', border: '1px solid var(--cx-border)' }}>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--cx-text3)' }}>
+                        Any notes for the AI? <span className="normal-case font-normal">(optional)</span>
+                      </label>
+                      <input
+                        value={photoNote}
+                        onChange={e => setPhotoNote(e.target.value)}
+                        placeholder="e.g. made with tortilla instead of dough, half portion, no cheese…"
+                        className="w-full rounded-xl px-4 py-3 text-sm outline-none transition"
+                        style={{ background: 'var(--cx-inner)', border: '1px solid var(--cx-border)', color: 'var(--cx-text)' }}
+                      />
+                    </div>
+                    <button onClick={handleAnalyse} disabled={analysing}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-70"
+                      style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
+                      <Sparkles className="h-4 w-4" /> Analyse Food
+                    </button>
+                  </div>
+                )}
 
                 {/* Results */}
                 {analysing && (
