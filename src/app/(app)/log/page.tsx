@@ -4,10 +4,16 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { Search, Loader2, Plus, CheckCircle2, Camera, Upload, X, Sparkles } from 'lucide-react'
+import { Search, Loader2, Plus, CheckCircle2, Camera, Upload, X, Sparkles, ScanBarcode } from 'lucide-react'
 import { addFoodEntry, getUser, getRecentFoods } from '@/lib/storage'
 import type { MealType } from '@/types'
 import { cn } from '@/lib/utils'
+import dynamic from 'next/dynamic'
+
+const BarcodeScanner = dynamic(
+  () => import('@/components/log/BarcodeScanner').then(m => m.BarcodeScanner),
+  { ssr: false, loading: () => <div className="rounded-2xl flex items-center justify-center" style={{ aspectRatio: '4/3', background: '#000' }}><Loader2 className="h-8 w-8 animate-spin text-[#22C55E]" /></div> }
+)
 
 const mealTabs: { type: MealType; emoji: string; label: string }[] = [
   { type: 'breakfast', emoji: '🌅', label: 'Breakfast' },
@@ -83,7 +89,7 @@ function LogContent() {
   const router = useRouter()
   const params = useSearchParams()
   const [meal, setMeal] = useState<MealType>((params.get('meal') as MealType) || 'snack')
-  const [mode, setMode] = useState<'search' | 'photo' | 'manual'>('search')
+  const [mode, setMode] = useState<'search' | 'barcode' | 'photo' | 'manual'>('search')
 
   // Search state
   const [query, setQuery] = useState('')
@@ -212,10 +218,55 @@ function LogContent() {
     return true
   }
 
+  // ── Barcode ──
+  const [scanning, setScanning] = useState(false)
+  const [barcodeProduct, setBarcodeProduct] = useState<{
+    name: string; serving: string;
+    per100g: { calories: number; protein: number; carbs: number; fat: number }
+  } | null>(null)
+  const [barcodeGrams, setBarcodeGrams] = useState('100')
+
+  async function handleBarcodeDetected(code: string) {
+    setScanning(false)
+    toast.loading('Looking up product…', { id: 'barcode' })
+    try {
+      const res = await fetch(`/api/barcode?code=${encodeURIComponent(code)}`)
+      const data = await res.json()
+      toast.dismiss('barcode')
+      if (!res.ok || data.error) { toast.error(data.error || 'Product not found'); return }
+      setBarcodeProduct(data)
+      setBarcodeGrams('100')
+    } catch {
+      toast.dismiss('barcode')
+      toast.error('Lookup failed — try again')
+    }
+  }
+
+  function getBarcodeNutrition() {
+    if (!barcodeProduct) return null
+    const g = Math.max(1, Number(barcodeGrams) || 100)
+    const ratio = g / 100
+    return {
+      calories: Math.round(barcodeProduct.per100g.calories * ratio),
+      protein:  Math.round(barcodeProduct.per100g.protein  * ratio),
+      carbs:    Math.round(barcodeProduct.per100g.carbs    * ratio),
+      fat:      Math.round(barcodeProduct.per100g.fat      * ratio),
+    }
+  }
+
+  function handleBarcodeAdd() {
+    if (!barcodeProduct) return
+    const n = getBarcodeNutrition()!
+    logFood({ name: `${barcodeProduct.name} (${barcodeGrams}g)`, ...n })
+    toast.success(`${barcodeProduct.name} added!`)
+    router.push('/dashboard')
+  }
+
   const modes = [
-    { id: 'search', label: '🔍 Search' },
-    { id: 'photo', label: '📸 AI Photo' },
-    { id: 'manual', label: '✏️ Manual' },
+    { id: 'search',  label: '🔍 Search' },
+    { id: 'barcode', label: '📊 Barcode' },
+    { id: 'photo',   label: '📸 AI Photo' },
+    { id: 'manual',  label: '✏️ Manual' },
   ] as const
 
   return (
@@ -291,6 +342,98 @@ function LogContent() {
                 </div>
               </div>
             )}
+          </motion.div>
+        )}
+
+        {/* ── Barcode mode ── */}
+        {mode === 'barcode' && (
+          <motion.div key="barcode" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {!scanning && !barcodeProduct && (
+              <div className="flex flex-col items-center justify-center rounded-3xl py-14 px-6 text-center cursor-pointer transition-all"
+                style={{ background: 'var(--cx-inner)', border: '2px dashed var(--cx-border)' }}
+                onClick={() => setScanning(true)}>
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
+                  style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                  <ScanBarcode className="h-7 w-7 text-[#22C55E]" />
+                </div>
+                <p className="font-semibold mb-1" style={cs.text}>Scan a barcode</p>
+                <p className="text-sm mb-5" style={cs.text3}>Point your camera at any packaged food barcode</p>
+                <span className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-black"
+                  style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
+                  <ScanBarcode className="h-4 w-4" /> Open Scanner
+                </span>
+              </div>
+            )}
+
+            {scanning && (
+              <BarcodeScanner
+                onDetected={handleBarcodeDetected}
+                onClose={() => setScanning(false)}
+              />
+            )}
+
+            {barcodeProduct && !scanning && (() => {
+              const n = getBarcodeNutrition()!
+              return (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                  {/* Product card */}
+                  <div className="rounded-2xl p-5" style={cs.card}>
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex-1">
+                        <p className="font-bold text-base leading-tight" style={cs.text}>{barcodeProduct.name}</p>
+                        <p className="text-xs mt-1" style={cs.text3}>Per 100g: {barcodeProduct.per100g.calories} kcal · P:{barcodeProduct.per100g.protein}g C:{barcodeProduct.per100g.carbs}g F:{barcodeProduct.per100g.fat}g</p>
+                      </div>
+                      <button onClick={() => setBarcodeProduct(null)} style={cs.text3}><X className="h-4 w-4" /></button>
+                    </div>
+
+                    {/* Grams input */}
+                    <div className="mb-4">
+                      <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={cs.text3}>Serving size (grams)</label>
+                      <div className="flex items-center gap-3">
+                        <input type="number" value={barcodeGrams} onChange={e => setBarcodeGrams(e.target.value)}
+                          className="w-28 rounded-xl px-4 py-2.5 text-center font-semibold outline-none"
+                          style={{ ...cs.input, fontSize: 18 }} min="1" max="2000" />
+                        <div className="flex gap-2">
+                          {['50', '100', '150', '200'].map(g => (
+                            <button key={g} onClick={() => setBarcodeGrams(g)}
+                              className="rounded-xl px-3 py-1.5 text-xs font-medium transition"
+                              style={barcodeGrams === g ? { background: '#22C55E', color: '#000' } : { background: 'var(--cx-inner)', border: '1px solid var(--cx-border)', color: 'var(--cx-text2)' }}>
+                              {g}g
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Calculated macros */}
+                    <div className="grid grid-cols-4 gap-2 mb-4">
+                      {[
+                        { label: 'Calories', value: `${n.calories}`, unit: 'kcal', color: '#22C55E' },
+                        { label: 'Protein',  value: `${n.protein}g`,  unit: '',     color: '#3B82F6' },
+                        { label: 'Carbs',    value: `${n.carbs}g`,    unit: '',     color: '#F59E0B' },
+                        { label: 'Fat',      value: `${n.fat}g`,      unit: '',     color: '#A855F7' },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="rounded-xl p-2.5 text-center" style={{ background: 'var(--cx-inner)' }}>
+                          <div className="text-sm font-bold" style={{ color }}>{value}</div>
+                          <div className="text-[10px]" style={cs.text3}>{label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button onClick={handleBarcodeAdd}
+                      className="w-full rounded-xl py-3 font-semibold text-black transition hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
+                      Add to {mealTabs.find(m => m.type === meal)?.label}
+                    </button>
+                  </div>
+
+                  <button onClick={() => { setBarcodeProduct(null); setScanning(true) }}
+                    className="w-full rounded-xl py-2.5 text-sm transition" style={{ color: 'var(--cx-text3)' }}>
+                    Scan a different product
+                  </button>
+                </motion.div>
+              )
+            })()}
           </motion.div>
         )}
 

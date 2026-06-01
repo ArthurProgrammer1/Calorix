@@ -173,3 +173,12 @@ html.light {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+@keyframes scan-line {
+  0%, 100% { top: 4px; }
+  50% { top: calc(100% - 4px); }
+}
+
+.animate-scan-line {
+  animation: scan-line 1.8s ease-in-out infinite;
+}

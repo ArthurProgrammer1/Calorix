@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine } from 'recharts'
-import { getUser, getLast7DaysData, getWeightLogs, addWeightLog, getStreak } from '@/lib/storage'
+import { getUser, getLast7DaysData, getWeightLogs, addWeightLog, getStreak, getProgressPhotos, addProgressPhoto, deleteProgressPhoto, type ProgressPhoto } from '@/lib/storage'
 import { useTheme } from '@/lib/theme'
 import type { UserProfile, WeightLog } from '@/types'
 import { toast } from 'sonner'
-import { TrendingUp, Flame, Calendar } from 'lucide-react'
+import { TrendingUp, Flame, Calendar, Camera, Trash2, Plus } from 'lucide-react'
 
 const s = {
   card: { background: 'var(--cx-card)', border: '1px solid var(--cx-border)', borderRadius: 16, padding: 20, boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset' } as React.CSSProperties,
@@ -24,6 +24,9 @@ export default function ProgressPage() {
   const [weights, setWeights] = useState<WeightLog[]>([])
   const [newWeight, setNewWeight] = useState('')
   const [streakData, setStreakData] = useState({ current: 0, best: 0, lastLogDate: '' })
+  const [photos, setPhotos] = useState<ProgressPhoto[]>([])
+  const [photoNote, setPhotoNote] = useState('')
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const { isDark } = useTheme()
 
   useEffect(() => {
@@ -33,6 +36,7 @@ export default function ProgressPage() {
     setCalData(getLast7DaysData().map(d => ({ date: d.date, calories: d.calories, goal: u.calorieTarget })))
     setWeights(getWeightLogs().slice(-14))
     setStreakData(getStreak())
+    setPhotos(getProgressPhotos())
   }, [router])
 
   function handleLogWeight() {
@@ -41,6 +45,39 @@ export default function ProgressPage() {
     setWeights(getWeightLogs().slice(-14))
     toast.success('Weight logged!')
     setNewWeight('')
+  }
+
+  async function handlePhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX = 600
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+        const today = new Date().toISOString().split('T')[0]
+        const latestWeight = getWeightLogs().slice(-1)[0]?.weight
+        addProgressPhoto({ date: today, dataUrl, weight: latestWeight, note: photoNote.trim() || undefined })
+        setPhotos(getProgressPhotos())
+        setPhotoNote('')
+        toast.success('Progress photo saved!')
+      }
+      img.src = ev.target!.result as string
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  function handleDeletePhoto(id: string) {
+    deleteProgressPhoto(id)
+    setPhotos(getProgressPhotos())
+    toast.success('Photo deleted')
   }
 
   if (!user) return null
@@ -117,6 +154,59 @@ export default function ProgressPage() {
           </ResponsiveContainer>
         ) : (
           <p className="py-4 text-center text-sm" style={s.text3}>Log at least 2 weights to see your chart</p>
+        )}
+      </motion.div>
+
+      {/* Progress Photos */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mb-5" style={s.card}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wider" style={s.text2}>Progress Photos</h2>
+          <button onClick={() => photoInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-black transition hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}>
+            <Plus className="h-3.5 w-3.5" /> Add Photo
+          </button>
+        </div>
+
+        {/* Note for next photo */}
+        <div className="mb-4">
+          <input value={photoNote} onChange={e => setPhotoNote(e.target.value)}
+            placeholder="Optional note for next photo (e.g. 'Week 3 — feeling stronger')"
+            className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+            style={{ background: 'var(--cx-inner)', border: '1px solid var(--cx-border)', color: 'var(--cx-text)' }} />
+        </div>
+
+        <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoFile} />
+
+        {photos.length === 0 ? (
+          <div className="flex flex-col items-center py-8 gap-3 rounded-2xl cursor-pointer"
+            style={{ background: 'var(--cx-inner)', border: '2px dashed var(--cx-border)' }}
+            onClick={() => photoInputRef.current?.click()}>
+            <Camera className="h-8 w-8" style={{ color: 'var(--cx-text3)' }} />
+            <p className="text-sm" style={s.text3}>Take your first progress photo</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {photos.map((photo, i) => (
+              <motion.div key={photo.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04 }}
+                className="relative group rounded-2xl overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                <img src={photo.dataUrl} alt={`Progress ${photo.date}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                  <p className="text-xs font-semibold text-white">
+                    {new Date(photo.date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                  </p>
+                  {photo.weight && <p className="text-xs text-white/70">{photo.weight} kg</p>}
+                  {photo.note && <p className="text-xs text-white/60 truncate">{photo.note}</p>}
+                </div>
+                <button onClick={() => handleDeletePhoto(photo.id)}
+                  className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                  style={{ background: 'rgba(239,68,68,0.85)' }}>
+                  <Trash2 className="h-3.5 w-3.5 text-white" />
+                </button>
+              </motion.div>
+            ))}
+          </div>
         )}
       </motion.div>
 

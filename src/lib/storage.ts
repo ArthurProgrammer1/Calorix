@@ -209,6 +209,43 @@ export function getRecentFoods(): RecentFood[] {
   } catch { return [] }
 }
 
+// ── Progress photos ──
+
+export interface ProgressPhoto {
+  id: string
+  date: string
+  dataUrl: string
+  weight?: number
+  note?: string
+}
+
+export function getProgressPhotos(): ProgressPhoto[] {
+  if (typeof window === 'undefined') return []
+  const email = getActiveEmail()
+  if (!email) return []
+  try {
+    const d = localStorage.getItem(`calorix_progress_photos_${emailKey(email)}`)
+    return d ? JSON.parse(d) : []
+  } catch { return [] }
+}
+
+export function addProgressPhoto(photo: Omit<ProgressPhoto, 'id'>): ProgressPhoto {
+  const email = getActiveEmail()
+  const full: ProgressPhoto = { ...photo, id: crypto.randomUUID() }
+  if (email) {
+    const updated = [full, ...getProgressPhotos()].slice(0, 30)
+    localStorage.setItem(`calorix_progress_photos_${emailKey(email)}`, JSON.stringify(updated))
+  }
+  return full
+}
+
+export function deleteProgressPhoto(id: string): void {
+  const email = getActiveEmail()
+  if (!email) return
+  const photos = getProgressPhotos().filter(p => p.id !== id)
+  localStorage.setItem(`calorix_progress_photos_${emailKey(email)}`, JSON.stringify(photos))
+}
+
 function recordRecentFood(e: { name: string; calories: number; protein: number; carbs: number; fat: number }): void {
   const email = getActiveEmail()
   if (!email) return
